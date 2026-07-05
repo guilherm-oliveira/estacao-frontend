@@ -7,12 +7,15 @@ export type Measurement = {
 }
 
 export type MeasurementDTO = {
-  id: number
-  stationIdentifier: string
-  temperature: number
-  humidity: number
-  measuredAt: string
-  createdAt: string
+  count: number,
+  measurements: {
+    id: number
+    stationIdentifier: string
+    temperature: number
+    humidity: number
+    measuredAt: string
+    createdAt: string
+  }[]
 }
 
 export type Station = {

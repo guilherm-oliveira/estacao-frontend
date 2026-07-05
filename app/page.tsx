@@ -20,6 +20,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [rawData, setRawData] = useState<Measurement[]>([])
+  const [countMeasurements, setCountMeasurements] = useState<number>(0)
   
   const lastRead = useMemo(() => {
     const lastTimestamp = rawData.at(-1)?.timestamp;
@@ -57,10 +58,10 @@ export default function Page() {
       maxTemp: Math.max(...temps),
       avgTemp: temps.reduce((a, b) => a + b, 0) / temps.length,
       avgHumidity: +(hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(1),
-      totalMeasurements: todayData.length,
+      totalMeasurements: countMeasurements,
       samplingInterval: "2 minutos",
     }
-  }, [last24h]);
+  }, [last24h, countMeasurements]);
 
   const PERIOD_MS: Record<Period, number> = {
     "24h": 24 * 60 * 60 * 1000,
@@ -85,15 +86,17 @@ export default function Page() {
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const data: MeasurementDTO[] = await res.json();
-        const dataMapped: Measurement[] = data.map((value) => ({
+        const data: MeasurementDTO = await res.json();
+        const dataMapped: Measurement[] = data.measurements.map((value) => ({
           humidity: value.humidity,
           timestamp: new Date(value.measuredAt).getTime(),
           temperature: value.temperature
         })).sort((a,b) => a.timestamp - b.timestamp);
 
-        console.log('mapped: ', dataMapped)
-        if (!cancelled) setRawData(dataMapped);
+        if (!cancelled) {
+          setRawData(dataMapped)
+          setCountMeasurements(data.count);
+        };
 
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Erro desconhecido")
