@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   ChartContainer,
@@ -18,6 +18,61 @@ const chartConfig = {
   temperature: { label: "Temperatura (°C)", color: "var(--chart-1)" },
   humidity: { label: "Umidade (%)", color: "var(--chart-2)" },
 } satisfies ChartConfig
+
+function findNearestTimestamp(sortedTimestamps: number[], target: number) {
+  let low = 0
+  let high = sortedTimestamps.length - 1
+
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2)
+
+    if (sortedTimestamps[middle] < target) {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+
+  const next = sortedTimestamps[low]
+  const previous = sortedTimestamps[low - 1]
+
+  if (previous !== undefined && Math.abs(previous - target) <= Math.abs(next - target)) {
+    return previous
+  }
+
+  return next
+}
+
+function getMidnightDividerTimestamps(measurements: Measurement[]) {
+  const sortedTimestamps = measurements
+    .map(({ timestamp }) => timestamp)
+    .sort((a, b) => a - b)
+
+  if (sortedTimestamps.length === 0) {
+    return []
+  }
+
+  const firstTimestamp = sortedTimestamps[0]
+  const lastTimestamp = sortedTimestamps.at(-1) ?? firstTimestamp
+  const firstDate = new Date(firstTimestamp)
+  const dayInMilliseconds = 24 * 60 * 60 * 1000
+  let midnight = new Date(
+    firstDate.getFullYear(),
+    firstDate.getMonth(),
+    firstDate.getDate(),
+  ).getTime()
+  const dividerTimestamps: number[] = []
+
+  if (midnight < firstTimestamp) {
+    midnight += dayInMilliseconds
+  }
+
+  for (; midnight <= lastTimestamp; midnight += dayInMilliseconds) {
+    dividerTimestamps.push(findNearestTimestamp(sortedTimestamps, midnight))
+  }
+
+  return [...new Set(dividerTimestamps)]
+}
 
 function PeriodSelector({
   period,
@@ -64,6 +119,10 @@ export function WeatherCharts({
       })),
     [measurements, period],
   )
+  const midnightDividerTimestamps = useMemo(
+    () => getMidnightDividerTimestamps(measurements),
+    [measurements],
+  )
 
   return (
     <section className="flex flex-col gap-4">
@@ -82,6 +141,8 @@ export function WeatherCharts({
               <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.4} />
               <XAxis
                 dataKey="timestamp"
+                type="number"
+                domain={["dataMin", "dataMax"]}
                 tickFormatter={(ts) => formatTimestamp(ts, period)}
                 tickLine={false}
                 axisLine={false}
@@ -126,6 +187,16 @@ export function WeatherCharts({
                 }
               />
               <ChartLegend content={<ChartLegendContent />} />
+              {midnightDividerTimestamps.map((timestamp) => (
+                <ReferenceLine
+                  key={timestamp}
+                  x={timestamp}
+                  yAxisId="temperature"
+                  stroke="var(--border)"
+                  strokeDasharray="4 4"
+                  strokeOpacity={0.85}
+                />
+              ))}
               <Line
                 yAxisId="temperature"
                 dataKey="temperature"
