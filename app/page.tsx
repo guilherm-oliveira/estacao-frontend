@@ -72,7 +72,7 @@ export default function Page() {
     "5y": 5 * 365 * 24 * 60 * 60 * 1000,
   }
 
-  const api = 'https://estacao-meteorologica-production-dbd2.up.railway.app';
+  const api = 'https://estacao-meteorologica-backend-7kki.onrender.com';
 
   useEffect(() => {
     let cancelled = false;
